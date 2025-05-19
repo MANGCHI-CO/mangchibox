@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>내 앱 다운로드</title>
+    <title>MANGCHI</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -24,34 +24,38 @@
     <!-- 헤더 -->
     <header class="bg-blue-600 text-white py-6">
         <div class="container mx-auto text-center">
-            <h1 class="text-4xl font-bold">내 멋진 앱</h1>
-            <p class="mt-2 text-lg">당신의 삶을 더 편리하게 만들어주는 앱</p>
+            <h1 class="text-4xl font-bold">MANGCHI BOX</h1>
         </div>
     </header>
 
-    <!-- 메인 섹션 -->
-    <section class="container mx-auto py-12 px-4">
-        <div class="flex flex-col md:flex-row items-center">
-            <!-- 앱 이미지 -->
-            <div class="md:w-1/2">
-                <img src="https://via.placeholder.com/400x600" alt="앱 스크린샷" class="rounded-lg shadow-lg">
+    <!-- 탭 네비게이션 -->
+    <section class="py-6 px-4">
+        <div class="w-full max-w-2xl mx-auto">
+            <div class="flex border-b border-gray-200">
+                <button id="android-tab" class="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-semibold">Android</button>
+                <button id="ios-tab" class="px-4 py-2 text-gray-600 hover:text-blue-600">iOS</button>
             </div>
-            <!-- 앱 정보 및 다운로드 -->
-            <div class="md:w-1/2 mt-8 md:mt-0 md:ml-12">
-                <h2 class="text-3xl font-semibold text-gray-800">앱 소개</h2>
-                <p class="mt-4 text-gray-600">
-                    이 앱은 사용자에게 놀라운 경험을 제공합니다. 간편한 인터페이스와 강력한 기능을 통해 일상생활을 더욱 효율적으로 만들어줍니다.
-                </p>
-                <div class="mt-6">
-                    <a href="/app/build/outputs/apk/release/app-release.apk" download
-                       class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                        Android 다운로드
-                    </a>
-                    <a href="path/to/your/app.ipa" download
-                       class="inline-block bg-gray-800 text-white px-6 py-3 rounded-lg ml-4 hover:bg-gray-900 transition">
-                        iOS 다운로드
-                    </a>
+        </div>
+    </section>
+
+    <!-- 탭 콘텐츠 -->
+    <section class="container mx-auto px-4 pb-12">
+        <!-- Android 탭 콘텐츠 -->
+        <div id="android-content" class="tab-content">
+            <div class="w-full">
+                <h3 class="text-2xl font-semibold text-gray-800">다운로드 가능한 APK 목록</h3>
+                <div id="apk-list" class="mt-4">
+                    <p class="text-gray-600">APK 파일을 불러오는 중...</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- f iOS 탭 콘텐츠 -->
+        <div id="ios-content" class="tab-content hidden">
+            <div class="w-full">
+                <p class="text-gray-600">
+                    TODO: iOS 앱 다운로드 및 정보는 추후 구현 예정입니다.
+                </p>
             </div>
         </div>
     </section>
@@ -66,7 +70,7 @@
     </footer>
 </div>
 
-<!-- JavaScript로 이름 검증 -->
+<!-- JavaScript -->
 <script>
     // 허용된 이름 리스트
     const allowedNames = ['김동준', '윤영지', '심명훈', '장유지', '한희수'];
@@ -76,23 +80,113 @@
     const errorMessage = document.getElementById('error-message');
     const nameInputSection = document.getElementById('name-input-section');
     const downloadPage = document.getElementById('download-page');
+    const androidTab = document.getElementById('android-tab');
+    const iosTab = document.getElementById('ios-tab');
+    const androidContent = document.getElementById('android-content');
+    const iosContent = document.getElementById('ios-content');
+    const apkList = document.getElementById('apk-list');
 
+    // 이름 입력 처리
     submitButton.addEventListener('click', () => {
-      const enteredName = nameInput.value.trim();
-      if (allowedNames.includes(enteredName)) {
-        // 이름이 리스트에 있으면 다운로드 페이지 표시
-        nameInputSection.classList.add('hidden');
-        downloadPage.classList.remove('hidden');
-      } else {
-        // 이름이 없으면 오류 메시지 표시
-        errorMessage.classList.remove('hidden');
-      }
+        const enteredName = nameInput.value.trim();
+        if (allowedNames.includes(enteredName)) {
+            nameInputSection.classList.add('hidden');
+            downloadPage.classList.remove('hidden');
+            fetchApkList(); // APK 목록 로드
+        } else {
+            errorMessage.classList.remove('hidden');
+        }
     });
 
-    // 입력 시 오류 메시지 숨기기
     nameInput.addEventListener('input', () => {
-      errorMessage.classList.add('hidden');
+        errorMessage.classList.add('hidden');
     });
+
+    // 탭 전환 처리
+    androidTab.addEventListener('click', () => {
+        androidTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
+        iosTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
+        iosTab.classList.add('text-gray-600', 'hover:text-blue-600');
+        androidContent.classList.remove('hidden');
+        iosContent.classList.add('hidden');
+    });
+
+    iosTab.addEventListener('click', () => {
+        iosTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
+        androidTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
+        androidTab.classList.add('text-gray-600', 'hover:text-blue-600');
+        iosContent.classList.remove('hidden');
+        androidContent.classList.add('hidden');
+    });
+
+    // APK 목록 가져오기
+    async function fetchApkList() {
+        try {
+            // Netlify Functions 호출
+            let response = await fetch('/api/fetch-apks');
+            
+            if (!response.ok) {
+                // Netlify Functions 실패 시 비인증 GitHub API 호출 시도
+                console.warn('Netlify Functions 요청 실패, 비인증 GitHub API 시도:', response.status, response.statusText);
+                response = await fetch('https://api.github.com/repos/mangchi-co/mangchibox/contents/android/apk', {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`APK 목록 가져오기 실패: ${response.status} ${response.statusText} - ${errorData.message || '알 수 없는 오류'}`);
+            }
+
+            const files = await response.json();
+            console.log('APK 목록 응답:', files);
+
+            // APK 파일 필터링 및 파싱
+            const apkFiles = files
+                .filter(file => file.name.endsWith('.apk') && file.name.startsWith('mangchi-'))
+                .map(file => {
+                    // 파일명 형식: mangchi-(versionname)-(YYYYMMDDHHMMSS).apk
+                    const match = file.name.match(/^mangchi-([\d.]+)-(\d{14})\.apk$/);
+                    if (match) {
+                        const version = match[1]; // 버전명 (예: 1.0.0)
+                        const buildTime = match[2]; // 빌드 시간 (예: 20250519125407)
+                        // 빌드 시간 포맷팅 (YYYY-MM-DD HH:MM:SS)
+                        const formattedBuildTime = `${buildTime.slice(0, 4)}-${buildTime.slice(4, 6)}-${buildTime.slice(6, 8)} ${buildTime.slice(8, 10)}:${buildTime.slice(10, 12)}:${buildTime.slice(12, 14)}`;
+                        return {
+                            name: file.name,
+                            version,
+                            buildTime: formattedBuildTime,
+                            downloadUrl: file.download_url
+                        };
+                    }
+                    return null;
+                })
+                .filter(file => file !== null);
+
+            // APK 목록 렌더링
+            if (apkFiles.length === 0) {
+                apkList.innerHTML = '<p class="text-gray-600">사용 가능한 APK 파일이 없습니다.</p>';
+                return;
+            }
+
+            apkList.innerHTML = apkFiles.map(file => `
+                <div class="mt-4 p-4 bg-white rounded-lg shadow">
+                    <p><strong>버전:</strong> ${file.version}</p>
+                    <p><strong>빌드 시간:</strong> ${file.buildTime}</p>
+                    <a href="${file.downloadUrl}" download
+                       class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        다운로드
+                    </a>
+                </div>
+            `).join('');
+
+        } catch (error) {
+            console.error('APK 목록 가져오기 실패:', error);
+            apkList.innerHTML = `<p class="text-red-600">APK 목록을 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
+        }
+    }
 </script>
 </body>
 </html>
