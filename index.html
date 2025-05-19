@@ -50,12 +50,13 @@
             </div>
         </div>
 
-        <!-- f iOS 탭 콘텐츠 -->
+        <!-- iOS 탭 콘텐츠 -->
         <div id="ios-content" class="tab-content hidden">
             <div class="w-full">
-                <p class="text-gray-600">
-                    TODO: iOS 앱 다운로드 및 정보는 추후 구현 예정입니다.
-                </p>
+                <h3 class="text-2xl font-semibold text-gray-800">TestFlight 베타 테스트</h3>
+                <div id="testflight-list" class="mt-4">
+                    <p class="text-gray-600">TestFlight 빌드를 불러오는 중...</p>
+                </div>
             </div>
         </div>
     </section>
@@ -85,6 +86,7 @@
     const androidContent = document.getElementById('android-content');
     const iosContent = document.getElementById('ios-content');
     const apkList = document.getElementById('apk-list');
+    const testflightList = document.getElementById('testflight-list');
 
     // 이름 입력 처리
     submitButton.addEventListener('click', () => {
@@ -117,6 +119,7 @@
         androidTab.classList.add('text-gray-600', 'hover:text-blue-600');
         iosContent.classList.remove('hidden');
         androidContent.classList.add('hidden');
+        fetchTestFlightBuilds(); // TestFlight 빌드 로드
     });
 
     // APK 목록 가져오기
@@ -165,6 +168,18 @@
                 })
                 .filter(file => file !== null);
 
+            // 버전 기준 내림차순 정렬
+            apkFiles.sort((a, b) => {
+                const versionA = a.version.split('.').map(Number);
+                const versionB = b.version.split('.').map(Number);
+                for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+                    const numA = versionA[i] || 0;
+                    const numB = versionB[i] || 0;
+                    if (numB !== numA) return numB - numA; // 내림차순
+                }
+                return 0;
+            });
+
             // APK 목록 렌더링
             if (apkFiles.length === 0) {
                 apkList.innerHTML = '<p class="text-gray-600">사용 가능한 APK 파일이 없습니다.</p>';
@@ -186,6 +201,63 @@
             console.error('APK 목록 가져오기 실패:', error);
             apkList.innerHTML = `<p class="text-red-600">APK 목록을 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
         }
+    }
+
+    // TestFlight 빌드 가져오기
+    async function fetchTestFlightBuilds() {
+        try {
+            // Netlify Functions 호출 (선택사항: 빌드 메타데이터를 제공하는 백엔드 엔드포인트)
+            let response = await fetch('/api/fetch-testflight-builds');
+            
+            if (!response.ok) {
+                console.warn('Netlify Functions 요청 실패, 정적 데이터 사용:', response.status, response.statusText);
+                // TestFlight API가 없으므로 정적 데이터 또는 백엔드에서 제공된 데이터로 대체
+                // 실제로는 App Store Connect에서 수동으로 생성한 공개 링크 사용
+                const builds = [
+                    {
+                        version: '1.0.0',
+                        buildTime: '2025-05-19 12:54:07',
+                        publicLink: 'https://testflight.apple.com/join/EXAMPLE_LINK_1' // App Store Connect에서 생성
+                    },
+                    {
+                        version: '1.1.0',
+                        buildTime: '2025-05-20 09:30:00',
+                        publicLink: 'https://testflight.apple.com/join/EXAMPLE_LINK_2' // App Store Connect에서 생성
+                    }
+                ];
+                renderTestFlightBuilds(builds);
+                return;
+            }
+
+            const builds = await response.json();
+            console.log('TestFlight 빌드 응답:', builds);
+
+            // 빌드 렌더링
+            renderTestFlightBuilds(builds);
+
+        } catch (error) {
+            console.error('TestFlight 빌드 가져오기 실패:', error);
+            testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
+        }
+    }
+
+    // TestFlight 빌드 렌더링
+    function renderTestFlightBuilds(builds) {
+        if (builds.length === 0) {
+            testflightList.innerHTML = '<p class="text-gray-600">사용 가능한 TestFlight 빌드가 없습니다.</p>';
+            return;
+        }
+
+        testflightList.innerHTML = builds.map(build => `
+            <div class="mt-4 p-4 bg-white rounded-lg shadow">
+                <p><strong>버전:</strong> ${build.version}</p>
+                <p><strong>빌드 시간:</strong> ${build.buildTime}</p>
+                <a href="${build.publicLink}" target="_blank"
+                   class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    TestFlight에서 테스트
+                </a>
+            </div>
+        `).join('');
     }
 </script>
 </body>
