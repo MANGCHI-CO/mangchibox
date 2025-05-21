@@ -203,43 +203,41 @@
         }
     }
 
-    // TestFlight 빌드 가져오기
-    async function fetchTestFlightBuilds() {
-        try {
-            // Netlify Functions 호출 (선택사항: 빌드 메타데이터를 제공하는 백엔드 엔드포인트)
-            let response = await fetch('/api/fetch-testflight-builds');
-            
-            if (!response.ok) {
-                console.warn('Netlify Functions 요청 실패, 정적 데이터 사용:', response.status, response.statusText);
-                // TestFlight API가 없으므로 정적 데이터 또는 백엔드에서 제공된 데이터로 대체
-                // 실제로는 App Store Connect에서 수동으로 생성한 공개 링크 사용
-                const builds = [
-                    {
-                        version: '1.0.0',
-                        buildTime: '2025-05-19 12:54:07',
-                        publicLink: 'https://testflight.apple.com/join/EXAMPLE_LINK_1' // App Store Connect에서 생성
-                    },
-                    {
-                        version: '1.1.0',
-                        buildTime: '2025-05-20 09:30:00',
-                        publicLink: 'https://testflight.apple.com/join/EXAMPLE_LINK_2' // App Store Connect에서 생성
-                    }
-                ];
-                renderTestFlightBuilds(builds);
-                return;
+// TestFlight 빌드 가져오기
+async function fetchTestFlightBuilds() {
+    try {
+        // Info.plist에서 가져온 CFBundleIdentifier
+        const bundleIdentifier = 'com.mangchi.ios';
+
+        // Netlify Functions 호출, bundleIdentifier를 쿼리 파라미터로 포함
+        let response = await fetch(`/api/fetch-testflight-builds?bundleId=${encodeURIComponent(bundleIdentifier)}`, {
+            headers: {
+                'Accept': 'application/json'
             }
+        });
 
-            const builds = await response.json();
-            console.log('TestFlight 빌드 응답:', builds);
-
-            // 빌드 렌더링
-            renderTestFlightBuilds(builds);
-
-        } catch (error) {
-            console.error('TestFlight 빌드 가져오기 실패:', error);
-            testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
+        if (!response.ok) {
+            throw new Error(`TestFlight 빌드 요청 실패: ${response.status} ${response.statusText}`);
         }
+
+        const builds = await response.json();
+        console.log('TestFlight 빌드 응답:', builds);
+
+        // 빌드가 bundleIdentifier와 일치하는지 확인
+        const filteredBuilds = builds.filter(build => build.bundleId === bundleIdentifier);
+        
+        if (filteredBuilds.length === 0) {
+            throw new Error('해당 앱에 대한 TestFlight 빌드가 없습니다.');
+        }
+
+        // 빌드 렌더링
+        renderTestFlightBuilds(filteredBuilds);
+
+    } catch (error) {
+        console.error('TestFlight 빌드 가져오기 실패:', error);
+        testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
     }
+}
 
     // TestFlight 빌드 렌더링
     function renderTestFlightBuilds(builds) {
