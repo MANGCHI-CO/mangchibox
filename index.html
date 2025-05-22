@@ -161,6 +161,7 @@
                             name: file.name,
                             version,
                             buildTime: formattedBuildTime,
+                            rawBuildTime: buildTime, // 정렬을 위한 원본 빌드 시간
                             downloadUrl: file.download_url
                         };
                     }
@@ -168,10 +169,24 @@
                 })
                 .filter(file => file !== null);
 
-            // 버전 기준 내림차순 정렬
-            apkFiles.sort((a, b) => {
-                const versionA = a.version.split('.').map(Number);
-                const versionB = b.version.split('.').map(Number);
+            // 버전별로 그룹화
+            const groupedByVersion = {};
+            apkFiles.forEach(file => {
+                if (!groupedByVersion[file.version]) {
+                    groupedByVersion[file.version] = [];
+                }
+                groupedByVersion[file.version].push(file);
+            });
+
+            // 각 버전별로 빌드 시간 기준 내림차순 정렬
+            Object.keys(groupedByVersion).forEach(version => {
+                groupedByVersion[version].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+            });
+
+            // 버전 목록을 내림차순 정렬
+            const sortedVersions = Object.keys(groupedByVersion).sort((a, b) => {
+                const versionA = a.split('.').map(Number);
+                const versionB = b.split('.').map(Number);
                 for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
                     const numA = versionA[i] || 0;
                     const numB = versionB[i] || 0;
@@ -181,21 +196,48 @@
             });
 
             // APK 목록 렌더링
-            if (apkFiles.length === 0) {
+            if (sortedVersions.length === 0) {
                 apkList.innerHTML = '<p class="text-gray-600">사용 가능한 APK 파일이 없습니다.</p>';
                 return;
             }
 
-            apkList.innerHTML = apkFiles.map(file => `
-                <div class="mt-4 p-4 bg-white rounded-lg shadow">
-                    <p><strong>버전:</strong> ${file.version}</p>
-                    <p><strong>빌드 시간:</strong> ${file.buildTime}</p>
-                    <a href="${file.downloadUrl}" download
-                       class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        다운로드
-                    </a>
-                </div>
-            `).join('');
+            apkList.innerHTML = sortedVersions.map(version => {
+                const builds = groupedByVersion[version];
+                const latestBuild = builds[0]; // 가장 최신 빌드
+                const olderBuilds = builds.slice(1); // 나머지 빌드들
+
+                let html = `
+                    <div class="mt-4 p-4 bg-white rounded-lg shadow">
+                        <p><strong>버전:</strong> ${version}</p>
+                        <p><strong>빌드 시간:</strong> ${latestBuild.buildTime}</p>
+                        <a href="${latestBuild.downloadUrl}" download
+                           class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            다운로드
+                        </a>
+                `;
+
+                if (olderBuilds.length > 0) {
+                    html += `
+                        <details class="mt-2">
+                            <summary class="text-gray-600 cursor-pointer hover:text-blue-600">이전 빌드 보기 (${olderBuilds.length})</summary>
+                            <div class="ml-4 mt-2">
+                                ${olderBuilds.map(build => `
+                                    <div class="mt-2 p-2 bg-gray-50 rounded-lg">
+                                        <p><strong>빌드 시간:</strong> ${build.buildTime}</p>
+                                        <a href="${build.downloadUrl}" download
+                                           class="inline-block mt-1 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition">
+                                            다운로드
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </details>
+                    `;
+                }
+
+                html += '</div>';
+                return html;
+            }).join('');
 
         } catch (error) {
             console.error('APK 목록 가져오기 실패:', error);
@@ -203,31 +245,31 @@
         }
     }
 
-// TestFlight 빌드 가져오기
-async function fetchTestFlightBuilds() {
-    try {
-        const bundleIdentifier = 'com.mangchi.ios';
-        const response = await fetch(`/api/fetch-testflight-builds?bundleId=${encodeURIComponent(bundleIdentifier)}`, {
-            headers: { 'Accept': 'application/json' }
-        });
+    // TestFlight 빌드 가져오기
+    async function fetchTestFlightBuilds() {
+        try {
+            const bundleIdentifier = 'com.mangchi.ios';
+            const response = await fetch(`/api/fetch-testflight-builds?bundleId=${encodeURIComponent(bundleIdentifier)}`, {
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (!response.ok) {
-            throw new Error(`TestFlight 빌드 요청 실패: ${response.status} ${response.statusText}`);
+            if (!response.ok) {
+                throw new Error(`TestFlight 빌드 요청 실패: ${response.status} ${response.statusText}`);
+            }
+
+            const builds = await response.json();
+            const filteredBuilds = builds.filter(build => build.bundleId === bundleIdentifier);
+
+            if (filteredBuilds.length === 0) {
+                throw new Error('해당 앱에 대한 TestFlight 빌드가 없습니다.');
+            }
+
+            renderTestFlightBuilds(filteredBuilds);
+        } catch (error) {
+            console.error('TestFlight 빌드 가져오기 실패:', error);
+            testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
         }
-
-        const builds = await response.json();
-        const filteredBuilds = builds.filter(build => build.bundleId === bundleIdentifier);
-
-        if (filteredBuilds.length === 0) {
-            throw new Error('해당 앱에 대한 TestFlight 빌드가 없습니다.');
-        }
-
-        renderTestFlightBuilds(filteredBuilds);
-    } catch (error) {
-        console.error('TestFlight 빌드 가져오기 실패:', error);
-        testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
     }
-}
 
     // TestFlight 빌드 렌더링
     function renderTestFlightBuilds(builds) {
