@@ -85,7 +85,7 @@
     <!-- 헤더 -->
     <header class="bg-blue-600 text-white py-6">
         <div class="container mx-auto text-center">
-            <h1 class="text-4xl font-bold">MANGCHI BOX</h1>
+            <h1 class="text-4xl font-bold">MANGCHI BOX For Android</h1>
         </div>
     </header>
 
@@ -103,8 +103,6 @@
     <footer class="bg-gray-800 text-white py-6">
         <div class="container mx-auto text-center">
             <p>© 2025 LSH Partners. 모든 권리 보유.</p>
-            <a href="/privacy" class="text-blue-300 hover:underline">개인정보 처리방침</a> |
-            <a href="/terms" class="text-blue-300 hover:underline">이용약관</a>
         </div>
     </footer>
 </div>
@@ -289,10 +287,10 @@
                         if (!contentLength) {
                             const blob = await response.blob();
                             triggerDownload(blob, filename);
-                            // 100% 프로그래스바 표시 후 1초 대기
+                            // 100% 프로그래스바 표시 후 0.3초 대기
                             const circumference = 2 * Math.PI * 10;
                             progressFg.setAttribute('stroke-dasharray', `${circumference} ${circumference}`);
-                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            await new Promise(resolve => setTimeout(resolve, 300));
                             button.classList.remove('disabled', 'downloading');
                             return;
                         }
@@ -319,10 +317,10 @@
                         const blob = new Blob(chunks);
                         triggerDownload(blob, filename);
 
-                        // 100% 프로그래스바 표시 후 1초 대기
+                        // 100% 프로그래스바 표시 후 0.3초 대기
                         const circumference = 2 * Math.PI * 10;
                         progressFg.setAttribute('stroke-dasharray', `${circumference} ${circumference}`);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await new Promise(resolve => setTimeout(resolve, 300));
                         button.classList.remove('disabled', 'downloading');
                     } catch (error) {
                         console.error('다운로드 오류:', error);
