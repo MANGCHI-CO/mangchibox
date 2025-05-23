@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MANGCHI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 원형 프로그래스바 스타일 */
+        .progress-circle {
+            width: 24px;
+            height: 24px;
+            transform: rotate(-90deg);
+        }
+        .progress-circle-bg {
+            fill: none;
+            stroke: #e5e7eb; /* bg-gray-200 */
+            stroke-width: 3;
+        }
+        .progress-circle-fg {
+            fill: none;
+            stroke: #2563eb; /* bg-blue-600 */
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.2s ease;
+        }
+        .download-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .download-button.disabled {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
 <!-- 이름 입력 폼 -->
@@ -28,35 +57,12 @@
         </div>
     </header>
 
-    <!-- 탭 네비게이션 -->
-    <section class="py-6 px-4">
-        <div class="w-full max-w-2xl mx-auto">
-            <div class="flex border-b border-gray-200">
-                <button id="android-tab" class="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-semibold">Android</button>
-                <button id="ios-tab" class="px-4 py-2 text-gray-600 hover:text-blue-600">iOS</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- 탭 콘텐츠 -->
-    <section class="container mx-auto px-4 pb-12">
-        <!-- Android 탭 콘텐츠 -->
-        <div id="android-content" class="tab-content">
-            <div class="w-full">
-                <h3 class="text-2xl font-semibold text-gray-800">다운로드 가능한 APK 목록</h3>
-                <div id="apk-list" class="mt-4">
-                    <p class="text-gray-600">APK 파일을 불러오는 중...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- iOS 탭 콘텐츠 -->
-        <div id="ios-content" class="tab-content hidden">
-            <div class="w-full">
-                <h3 class="text-2xl font-semibold text-gray-800">TestFlight 베타 테스트</h3>
-                <div id="testflight-list" class="mt-4">
-                    <p class="text-gray-600">TestFlight 빌드를 불러오는 중...</p>
-                </div>
+    <!-- Android 콘텐츠 -->
+    <section class="container mx-auto px-4 py-12">
+        <div class="w-full">
+            <h3 class="text-2xl font-semibold text-gray-800">다운로드 가능한 APK 목록</h3>
+            <div id="apk-list" class="mt-4">
+                <p class="text-gray-600">APK 파일을 불러오는 중...</p>
             </div>
         </div>
     </section>
@@ -81,12 +87,7 @@
     const errorMessage = document.getElementById('error-message');
     const nameInputSection = document.getElementById('name-input-section');
     const downloadPage = document.getElementById('download-page');
-    const androidTab = document.getElementById('android-tab');
-    const iosTab = document.getElementById('ios-tab');
-    const androidContent = document.getElementById('android-content');
-    const iosContent = document.getElementById('ios-content');
     const apkList = document.getElementById('apk-list');
-    const testflightList = document.getElementById('testflight-list');
 
     // 이름 입력 처리
     submitButton.addEventListener('click', () => {
@@ -94,7 +95,7 @@
         if (allowedNames.includes(enteredName)) {
             nameInputSection.classList.add('hidden');
             downloadPage.classList.remove('hidden');
-            fetchApkList(); // APK 목록 로드
+            fetchApkList();
         } else {
             errorMessage.classList.remove('hidden');
         }
@@ -104,32 +105,12 @@
         errorMessage.classList.add('hidden');
     });
 
-    // 탭 전환 처리
-    androidTab.addEventListener('click', () => {
-        androidTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
-        iosTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
-        iosTab.classList.add('text-gray-600', 'hover:text-blue-600');
-        androidContent.classList.remove('hidden');
-        iosContent.classList.add('hidden');
-    });
-
-    iosTab.addEventListener('click', () => {
-        iosTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
-        androidTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'font-semibold');
-        androidTab.classList.add('text-gray-600', 'hover:text-blue-600');
-        iosContent.classList.remove('hidden');
-        androidContent.classList.add('hidden');
-        fetchTestFlightBuilds(); // TestFlight 빌드 로드
-    });
-
     // APK 목록 가져오기
     async function fetchApkList() {
         try {
-            // Netlify Functions 호출
             let response = await fetch('/api/fetch-apks');
             
             if (!response.ok) {
-                // Netlify Functions 실패 시 비인증 GitHub API 호출 시도
                 console.warn('Netlify Functions 요청 실패, 비인증 GitHub API 시도:', response.status, response.statusText);
                 response = await fetch('https://api.github.com/repos/mangchi-co/mangchibox/contents/android/apk', {
                     headers: {
@@ -150,18 +131,22 @@
             const apkFiles = files
                 .filter(file => file.name.endsWith('.apk') && file.name.startsWith('mangchi-'))
                 .map(file => {
-                    // 파일명 형식: mangchi-(versionname)-(YYYYMMDDHHMMSS).apk
-                    const match = file.name.match(/^mangchi-([\d.]+)-(\d{14})\.apk$/);
+                    const match = file.name.match(/^mangchi-(\d+\.\d+\.\d+\.\d+)-(\d{14})\.apk$/);
                     if (match) {
-                        const version = match[1]; // 버전명 (예: 1.0.0)
-                        const buildTime = match[2]; // 빌드 시간 (예: 20250519125407)
-                        // 빌드 시간 포맷팅 (YYYY-MM-DD HH:MM:SS)
+                        const versionName = match[1];
+                        const buildTime = match[2];
+                        const [major, minor, patch, build] = versionName.split('.').map(Number);
+                        const versionCode = major * 10000 + minor * 100 + build;
+                        const displayVersion = `${major}.${minor}.${patch}`;
                         const formattedBuildTime = `${buildTime.slice(0, 4)}-${buildTime.slice(4, 6)}-${buildTime.slice(6, 8)} ${buildTime.slice(8, 10)}:${buildTime.slice(10, 12)}:${buildTime.slice(12, 14)}`;
                         return {
                             name: file.name,
-                            version,
+                            versionName,
+                            displayVersion,
+                            versionCode,
+                            build,
                             buildTime: formattedBuildTime,
-                            rawBuildTime: buildTime, // 정렬을 위한 원본 빌드 시간
+                            rawBuildTime: buildTime,
                             downloadUrl: file.download_url
                         };
                     }
@@ -169,13 +154,13 @@
                 })
                 .filter(file => file !== null);
 
-            // 버전별로 그룹화
+            // displayVersion(MAJOR.MINOR.PATCH)별로 그룹화
             const groupedByVersion = {};
             apkFiles.forEach(file => {
-                if (!groupedByVersion[file.version]) {
-                    groupedByVersion[file.version] = [];
+                if (!groupedByVersion[file.displayVersion]) {
+                    groupedByVersion[file.displayVersion] = [];
                 }
-                groupedByVersion[file.version].push(file);
+                groupedByVersion[file.displayVersion].push(file);
             });
 
             // 각 버전별로 빌드 시간 기준 내림차순 정렬
@@ -187,10 +172,10 @@
             const sortedVersions = Object.keys(groupedByVersion).sort((a, b) => {
                 const versionA = a.split('.').map(Number);
                 const versionB = b.split('.').map(Number);
-                for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+                for (let i = 0; i < 3; i++) {
                     const numA = versionA[i] || 0;
                     const numB = versionB[i] || 0;
-                    if (numB !== numA) return numB - numA; // 내림차순
+                    if (numB !== numA) return numB - numA;
                 }
                 return 0;
             });
@@ -203,17 +188,21 @@
 
             apkList.innerHTML = sortedVersions.map(version => {
                 const builds = groupedByVersion[version];
-                const latestBuild = builds[0]; // 가장 최신 빌드
-                const olderBuilds = builds.slice(1); // 나머지 빌드들
+                const latestBuild = builds[0];
+                const olderBuilds = builds.slice(1);
 
                 let html = `
                     <div class="mt-4 p-4 bg-white rounded-lg shadow">
-                        <p><strong>버전:</strong> ${version}</p>
-                        <p><strong>빌드 시간:</strong> ${latestBuild.buildTime}</p>
-                        <a href="${latestBuild.downloadUrl}" download
-                           class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                            다운로드
-                        </a>
+                        <p><strong>버전:</strong> ${version} (${latestBuild.versionCode})</p>
+                        <button class="download-button inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" 
+                                data-url="${latestBuild.downloadUrl}" 
+                                data-filename="${latestBuild.name}">
+                            <span>다운로드</span>
+                            <svg class="progress-circle hidden" viewBox="0 0 24 24">
+                                <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                            </svg>
+                        </button>
                 `;
 
                 if (olderBuilds.length > 0) {
@@ -223,11 +212,16 @@
                             <div class="ml-4 mt-2">
                                 ${olderBuilds.map(build => `
                                     <div class="mt-2 p-2 bg-gray-50 rounded-lg">
-                                        <p><strong>빌드 시간:</strong> ${build.buildTime}</p>
-                                        <a href="${build.downloadUrl}" download
-                                           class="inline-block mt-1 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition">
-                                            다운로드
-                                        </a>
+                                        <p><strong>버전:</strong> ${build.displayVersion} (${build.versionCode})</p>
+                                        <button class="download-button inline-block mt-1 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
+                                                data-url="${build.downloadUrl}" 
+                                                data-filename="${build.name}">
+                                            <span>다운로드</span>
+                                            <svg class="progress-circle hidden" viewBox="0 0 24 24">
+                                                <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                                <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                                            </svg>
+                                        </button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -239,55 +233,85 @@
                 return html;
             }).join('');
 
+            // 다운로드 버튼에 이벤트 리스너 추가
+            document.querySelectorAll('.download-button').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const url = button.getAttribute('data-url');
+                    const filename = button.getAttribute('data-filename');
+                    const progressCircle = button.querySelector('.progress-circle');
+                    const progressFg = button.querySelector('.progress-circle-fg');
+                    const textSpan = button.querySelector('span');
+
+                    // 버튼 비활성화 및 프로그래스바 표시
+                    button.classList.add('disabled');
+                    textSpan.textContent = '다운로드 중...';
+                    progressCircle.classList.remove('hidden');
+
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`다운로드 실패: ${response.statusText}`);
+
+                        const contentLength = response.headers.get('content-length');
+                        if (!contentLength) {
+                            const blob = await response.blob();
+                            triggerDownload(blob, filename);
+                            textSpan.textContent = '다운로드';
+                            progressCircle.classList.add('hidden');
+                            button.classList.remove('disabled');
+                            return;
+                        }
+
+                        const total = parseInt(contentLength, 10);
+                        let loaded = 0;
+
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(value);
+                            loaded += value.length;
+
+                            // 진행률 계산 및 프로그래스바 업데이트
+                            const progress = (loaded / total) * 100;
+                            const circumference = 2 * Math.PI * 10;
+                            const dashLength = (progress / 100) * circumference;
+                            progressFg.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
+                        }
+
+                        // 다운로드 완료 후 Blob 생성 및 트리거
+                        const blob = new Blob(chunks);
+                        triggerDownload(blob, filename);
+
+                        // 버튼 복원
+                        textSpan.textContent = '다운로드';
+                        progressCircle.classList.add('hidden');
+                        button.classList.remove('disabled');
+                    } catch (error) {
+                        console.error('다운로드 오류:', error);
+                        textSpan.textContent = '다운로드';
+                        progressCircle.classList.add('hidden');
+                        button.classList.remove('disabled');
+                        alert('다운로드 중 오류가 발생했습니다: ' + error.message);
+                    }
+                });
+            });
+
+            // Blob으로 다운로드 트리거
+            function triggerDownload(blob, filename) {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
         } catch (error) {
             console.error('APK 목록 가져오기 실패:', error);
             apkList.innerHTML = `<p class="text-red-600">APK 목록을 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
         }
-    }
-
-    // TestFlight 빌드 가져오기
-    async function fetchTestFlightBuilds() {
-        try {
-            const bundleIdentifier = 'com.mangchi.ios';
-            const response = await fetch(`/api/fetch-testflight-builds?bundleId=${encodeURIComponent(bundleIdentifier)}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) {
-                throw new Error(`TestFlight 빌드 요청 실패: ${response.status} ${response.statusText}`);
-            }
-
-            const builds = await response.json();
-            const filteredBuilds = builds.filter(build => build.bundleId === bundleIdentifier);
-
-            if (filteredBuilds.length === 0) {
-                throw new Error('해당 앱에 대한 TestFlight 빌드가 없습니다.');
-            }
-
-            renderTestFlightBuilds(filteredBuilds);
-        } catch (error) {
-            console.error('TestFlight 빌드 가져오기 실패:', error);
-            testflightList.innerHTML = `<p class="text-red-600">TestFlight 빌드를 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
-        }
-    }
-
-    // TestFlight 빌드 렌더링
-    function renderTestFlightBuilds(builds) {
-        if (builds.length === 0) {
-            testflightList.innerHTML = '<p class="text-gray-600">사용 가능한 TestFlight 빌드가 없습니다.</p>';
-            return;
-        }
-
-        testflightList.innerHTML = builds.map(build => `
-            <div class="mt-4 p-4 bg-white rounded-lg shadow">
-                <p><strong>버전:</strong> ${build.version}</p>
-                <p><strong>빌드 시간:</strong> ${build.buildTime}</p>
-                <a href="${build.publicLink}" target="_blank"
-                   class="inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                    TestFlight에서 테스트
-                </a>
-            </div>
-        `).join('');
     }
 </script>
 </body>
