@@ -27,11 +27,43 @@
         .download-button {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
+            min-width: 120px; /* 버튼 최소 너비 */
+            height: 40px; /* 버튼 높이 */
+            position: relative;
         }
         .download-button.disabled {
             pointer-events: none;
             opacity: 0.7;
+        }
+        .download-button .text {
+            transition: opacity 0.2s ease;
+        }
+        .download-button.downloading .text {
+            opacity: 0; /* 다운로드 중 텍스트 숨김 */
+        }
+        .download-button .progress-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-90deg); /* 중앙 정렬 */
+            display: none;
+        }
+        .download-button.downloading .progress-circle {
+            display: block; /* 다운로드 중 프로그래스바 표시 */
+        }
+        /* 버전과 버튼 레이아웃 */
+        .apk-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+        .apk-version {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            color: #1f2937; /* text-gray-800 */
         }
     </style>
 </head>
@@ -136,7 +168,7 @@
                         const versionName = match[1];
                         const buildTime = match[2];
                         const [major, minor, patch, build] = versionName.split('.').map(Number);
-                        const versionCode = major * 10000 + minor * 100 + build;
+                        const versionCode = major * 10000 + minor * 1000 + patch * 100 + build; // 예: 1.0.2.4 -> 10204
                         const displayVersion = `${major}.${minor}.${patch}`;
                         const formattedBuildTime = `${buildTime.slice(0, 4)}-${buildTime.slice(4, 6)}-${buildTime.slice(6, 8)} ${buildTime.slice(8, 10)}:${buildTime.slice(10, 12)}:${buildTime.slice(12, 14)}`;
                         return {
@@ -193,16 +225,18 @@
 
                 let html = `
                     <div class="mt-4 p-4 bg-white rounded-lg shadow">
-                        <p><strong>버전:</strong> ${version} (${latestBuild.versionCode})</p>
-                        <button class="download-button inline-block mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" 
-                                data-url="${latestBuild.downloadUrl}" 
-                                data-filename="${latestBuild.name}">
-                            <span>다운로드</span>
-                            <svg class="progress-circle hidden" viewBox="0 0 24 24">
-                                <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
-                                <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
-                            </svg>
-                        </button>
+                        <div class="apk-item">
+                            <p class="apk-version">버전: ${version} (${latestBuild.versionCode})</p>
+                            <button class="download-button bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" 
+                                    data-url="${latestBuild.downloadUrl}" 
+                                    data-filename="${latestBuild.name}">
+                                <span class="text">다운로드</span>
+                                <svg class="progress-circle" viewBox="0 0 24 24">
+                                    <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                    <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                                </svg>
+                            </button>
+                        </div>
                 `;
 
                 if (olderBuilds.length > 0) {
@@ -212,16 +246,18 @@
                             <div class="ml-4 mt-2">
                                 ${olderBuilds.map(build => `
                                     <div class="mt-2 p-2 bg-gray-50 rounded-lg">
-                                        <p><strong>버전:</strong> ${build.displayVersion} (${build.versionCode})</p>
-                                        <button class="download-button inline-block mt-1 bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
-                                                data-url="${build.downloadUrl}" 
-                                                data-filename="${build.name}">
-                                            <span>다운로드</span>
-                                            <svg class="progress-circle hidden" viewBox="0 0 24 24">
-                                                <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
-                                                <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
-                                            </svg>
-                                        </button>
+                                        <div class="apk-item">
+                                            <p class="apk-version">버전: ${build.displayVersion} (${build.versionCode})</p>
+                                            <button class="download-button bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
+                                                    data-url="${build.downloadUrl}" 
+                                                    data-filename="${build.name}">
+                                                <span class="text">다운로드</span>
+                                                <svg class="progress-circle" viewBox="0 0 24 24">
+                                                    <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                                    <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 `).join('')}
                             </div>
@@ -240,12 +276,10 @@
                     const filename = button.getAttribute('data-filename');
                     const progressCircle = button.querySelector('.progress-circle');
                     const progressFg = button.querySelector('.progress-circle-fg');
-                    const textSpan = button.querySelector('span');
+                    const textSpan = button.querySelector('.text');
 
-                    // 버튼 비활성화 및 프로그래스바 표시
-                    button.classList.add('disabled');
-                    textSpan.textContent = '다운로드 중...';
-                    progressCircle.classList.remove('hidden');
+                    // 버튼 비활성화 및 다운로드 상태 표시
+                    button.classList.add('disabled', 'downloading');
 
                     try {
                         const response = await fetch(url);
@@ -255,9 +289,11 @@
                         if (!contentLength) {
                             const blob = await response.blob();
                             triggerDownload(blob, filename);
-                            textSpan.textContent = '다운로드';
-                            progressCircle.classList.add('hidden');
-                            button.classList.remove('disabled');
+                            // 100% 프로그래스바 표시 후 1초 대기
+                            const circumference = 2 * Math.PI * 10;
+                            progressFg.setAttribute('stroke-dasharray', `${circumference} ${circumference}`);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            button.classList.remove('disabled', 'downloading');
                             return;
                         }
 
@@ -283,15 +319,14 @@
                         const blob = new Blob(chunks);
                         triggerDownload(blob, filename);
 
-                        // 버튼 복원
-                        textSpan.textContent = '다운로드';
-                        progressCircle.classList.add('hidden');
-                        button.classList.remove('disabled');
+                        // 100% 프로그래스바 표시 후 1초 대기
+                        const circumference = 2 * Math.PI * 10;
+                        progressFg.setAttribute('stroke-dasharray', `${circumference} ${circumference}`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        button.classList.remove('disabled', 'downloading');
                     } catch (error) {
                         console.error('다운로드 오류:', error);
-                        textSpan.textContent = '다운로드';
-                        progressCircle.classList.add('hidden');
-                        button.classList.remove('disabled');
+                        button.classList.remove('disabled', 'downloading');
                         alert('다운로드 중 오류가 발생했습니다: ' + error.message);
                     }
                 });
