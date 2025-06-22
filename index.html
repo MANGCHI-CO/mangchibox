@@ -70,14 +70,12 @@
             color: #6b7280; /* text-gray-500 */
             margin-left: 8px;
         }
-        /* 수정 시작 */
         /* 버튼을 가로로 배치하기 위한 스타일 */
         .button-container {
             display: flex;
             gap: 12px;
             align-items: center;
         }
-        /* 수정 완료 */
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -232,7 +230,7 @@
                 const latestAab = versionData.aab[0];
                 const olderApkBuilds = versionData.apk.slice(1);
                 const olderAabBuilds = versionData.aab.slice(1);
-                const olderBuilds = [...olderApkBuilds, ...olderAabBuilds];
+                const olderBuilds = [...olderApkBuilds, ...olderAabBuilds].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
 
                 // 최신 빌드 버튼 생성 (apk와 aab 모두 표시)
                 let html = `
@@ -278,7 +276,7 @@
                             <div class="ml-4 mt-2">
                                 ${olderBuilds.map(build => `
                                     <div class="mt-2 p-2 bg-gray-50 rounded-lg">
-                                        <div class="file-item">
+                                        <div class="button-container">
                                             <p class="file-version">${build.buildTime}</p>
                                             <button class="download-button bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
                                                     data-url="${build.downloadUrl}" 
@@ -348,7 +346,7 @@
                             progressFg.setAttribute('stroke-dasharray', `${dashLength} ${circumference}`);
                         }
 
-                        // 다운로드 완료 후 Blob 생성 및 호출
+                        // 다운로드 완료 후 Blob 생성 및 트리거
                         const blob = new Blob(chunks);
                         triggerDownload(blob, filename);
 
@@ -358,14 +356,14 @@
                         await new Promise(resolve => setTimeout(resolve, 300));
                         button.classList.remove('disabled', 'downloading');
                     } catch (error) {
-                        console.error('Upload 오류:', error);
+                        console.error('다운로드 오류:', error);
                         button.classList.remove('disabled', 'downloading');
                         alert('다운로드 중 오류가 발생했습니다: ' + error.message);
                     }
                 });
             });
 
-            // Blob으로 다운로드 호출
+            // Blob으로 다운로드 트리거
             function triggerDownload(blob, filename) {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -378,10 +376,10 @@
             }
         } catch (error) {
             console.error('파일 목록 가져오기 실패:', error);
-            fileList.innerHTML = `<p class="text-red-600">APP 목록을 불러올 수 없습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
+            fileList.innerHTML = `<p class="text-red-600">APP 목록을 불러오지 못했습니다: ${error.message}. 나중에 다시 시도하세요.</p>`;
         }
     }
 </script>
-<script>(function(){var b=a.contentDocument||a.contentWindow.document;if(b){var c=b.createElement('script');c.innerHTML="window.__CF$cv$params={r:'95387309c9e7ea2d',t:'MTc1MDU2MDc0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(c)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)b();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',b);else{var d=document.onreadystatechange||function(){};document.onreadystatechange=function(a){d(a);'loading'!==document.readyState&&(document.onreadystatechange=d,b())}}}})();</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'95387309c9e7ea2d',t:'MTc1MDU2MDc0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
