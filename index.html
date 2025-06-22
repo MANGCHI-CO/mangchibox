@@ -198,44 +198,71 @@
                 })
                 .filter(file => file !== null);
 
-            // versionCode별로 그룹화하고, 각 버전 내에서 apk와 aab로 세분화
-            const groupedByVersionCode = {};
+            // 수정 시작
+            // displayVersion별로 그룹화
+            const groupedByDisplayVersion = {};
             buildFiles.forEach(file => {
-                if (!groupedByVersionCode[file.versionCode]) {
-                    groupedByVersionCode[file.versionCode] = { apk: [], aab: [], displayVersion: file.displayVersion };
+                if (!groupedByDisplayVersion[file.displayVersion]) {
+                    groupedByDisplayVersion[file.displayVersion] = [];
                 }
-                groupedByVersionCode[file.versionCode][file.ext].push(file);
+                groupedByDisplayVersion[file.displayVersion].push(file);
             });
 
-            // 각 versionCode의 apk와 aab별로 빌드 시간 기준 내림차순 정렬
-            Object.keys(groupedByVersionCode).forEach(versionCode => {
-                ['apk', 'aab'].forEach(ext => {
-                    groupedByVersionCode[versionCode][ext].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+            // 각 displayVersion 내에서 versionCode별로 세분화
+            Object.keys(groupedByDisplayVersion).forEach(displayVersion => {
+                const files = groupedByDisplayVersion[displayVersion];
+                groupedByDisplayVersion[displayVersion] = {
+                    byVersionCode: {},
+                    versionCodes: []
+                };
+                files.forEach(file => {
+                    if (!groupedByDisplayVersion[displayVersion].byVersionCode[file.versionCode]) {
+                        groupedByDisplayVersion[displayVersion].byVersionCode[file.versionCode] = { apk: [], aab: [] };
+                        groupedByDisplayVersion[displayVersion].versionCodes.push(file.versionCode);
+                    }
+                    groupedByDisplayVersion[displayVersion].byVersionCode[file.versionCode][file.ext].push(file);
                 });
+                // 각 versionCode의 apk와 aab를 빌드 시간 기준 내림차순 정렬
+                Object.keys(groupedByDisplayVersion[displayVersion].byVersionCode).forEach(versionCode => {
+                    ['apk', 'aab'].forEach(ext => {
+                        groupedByDisplayVersion[displayVersion].byVersionCode[versionCode][ext].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+                    });
+                });
+                // versionCode를 내림차순 정렬
+                groupedByDisplayVersion[displayVersion].versionCodes.sort((a, b) => b - a);
             });
 
-            // 버전 코드 목록을 내림차순 정렬
-            const sortedVersionCodes = Object.keys(groupedByVersionCode).sort((a, b) => b - a);
+            // displayVersion 목록을 내림차순 정렬
+            const sortedDisplayVersions = Object.keys(groupedByDisplayVersion).sort((a, b) => {
+                const versionA = a.split('.').map(Number);
+                const versionB = b.split('.').map(Number);
+                for (let i = 0; i < 3; i++) {
+                    const numA = versionA[i] || 0;
+                    const numB = versionB[i] || 0;
+                    if (numB !== numA) return numB - numA;
+                }
+                return 0;
+            });
 
             // 파일 목록 렌더링
-            if (sortedVersionCodes.length === 0) {
+            if (sortedDisplayVersions.length === 0) {
                 fileList.innerHTML = '<p class="text-gray-600">사용 가능한 APP이 없습니다.</p>';
                 return;
             }
 
-            // 수정 시작
-            fileList.innerHTML = sortedVersionCodes.map(versionCode => {
-                const versionData = groupedByVersionCode[versionCode];
-                const latestApk = versionData.apk[0];
-                const latestAab = versionData.aab[0];
-                const olderApkBuilds = versionData.apk.slice(1);
-                const olderAabBuilds = versionData.aab.slice(1);
-                const olderBuilds = [...olderApkBuilds, ...olderAabBuilds].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+            fileList.innerHTML = sortedDisplayVersions.map(displayVersion => {
+                const versionData = groupedByDisplayVersion[displayVersion];
+                const latestVersionCode = versionData.versionCodes[0];
+                const latestVersionData = versionData.byVersionCode[latestVersionCode];
+                const latestApk = latestVersionData.apk[0];
+                const latestAab = latestVersionData.aab[0];
+                // 나머지 versionCode를 이전 빌드로 간주
+                const olderVersionCodes = versionData.versionCodes.slice(1);
 
-                // 최신 빌드 버튼 생성 (apk와 aab 모두 표시)
+                // 최신 versionCode의 버튼 생성
                 let html = `
                     <div class="mt-4 p-4 bg-white rounded-lg shadow">
-                        <p class="file-version">버전: ${versionData.displayVersion} (${versionCode})</p>
+                        <p class="file-version">버전: ${displayVersion} (${latestVersionCode})</p>
                         <div class="button-container ml-4 mt-2">
                 `;
 
@@ -269,27 +296,49 @@
 
                 html += `</div>`;
 
-                if (olderBuilds.length > 0) {
+                if (olderVersionCodes.length > 0) {
                     html += `
                         <details class="mt-2">
-                            <summary class="text-gray-600 cursor-pointer hover:text-blue-600">이전 빌드 보기 (${olderBuilds.length})</summary>
+                            <summary class="text-gray-600 cursor-pointer hover:text-blue-600">이전 빌드 보기 (${olderVersionCodes.length})</summary>
                             <div class="ml-4 mt-2">
-                                ${olderBuilds.map(build => `
-                                    <div class="mt-2 p-2 bg-gray-50 rounded-lg">
-                                        <div class="button-container">
-                                            <p class="file-version">${build.buildTime}</p>
+                                ${olderVersionCodes.map(versionCode => {
+                                    const olderVersionData = versionData.byVersionCode[versionCode];
+                                    const olderApk = olderVersionData.apk[0];
+                                    const olderAab = olderVersionData.aab[0];
+                                    let olderHtml = `
+                                        <div class="mt-2 p-2 bg-gray-50 rounded-lg">
+                                            <p class="file-version">버전: ${displayVersion} (${versionCode})</p>
+                                            <div class="button-container ml-4 mt-2">
+                                    `;
+                                    if (olderApk) {
+                                        olderHtml += `
                                             <button class="download-button bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
-                                                    data-url="${build.downloadUrl}" 
-                                                    data-filename="${build.name}">
-                                                <span class="text">${build.ext.toUpperCase()} 다운로드</span>
+                                                    data-url="${olderApk.downloadUrl}" 
+                                                    data-filename="${olderApk.name}">
+                                                <span class="text">APK 다운로드</span>
                                                 <svg class="progress-circle" viewBox="0 0 24 24">
                                                     <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
                                                     <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
                                                 </svg>
                                             </button>
-                                        </div>
-                                    </div>
-                                `).join('')}
+                                        `;
+                                    }
+                                    if (olderAab) {
+                                        olderHtml += `
+                                            <button class="download-button bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
+                                                    data-url="${olderAab.downloadUrl}" 
+                                                    data-filename="${olderAab.name}">
+                                                <span class="text">AAB 다운로드</span>
+                                                <svg class="progress-circle" viewBox="0 0 24 24">
+                                                    <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                                    <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                                                </svg>
+                                            </button>
+                                        `;
+                                    }
+                                    olderHtml += `</div></div>`;
+                                    return olderHtml;
+                                }).join('')}
                             </div>
                         </details>
                     `;
