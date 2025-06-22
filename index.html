@@ -192,18 +192,20 @@
                 })
                 .filter(file => file !== null);
 
-            // displayVersion(MAJOR.MINOR.PATCH)별로 그룹화
+            // displayVersion별로 그룹화하고, 각 버전 내에서 apk와 aab로 세분화
             const groupedByVersion = {};
             buildFiles.forEach(file => {
                 if (!groupedByVersion[file.displayVersion]) {
-                    groupedByVersion[file.displayVersion] = [];
+                    groupedByVersion[file.displayVersion] = { apk: [], aab: [] };
                 }
-                groupedByVersion[file.displayVersion].push(file);
+                groupedByVersion[file.displayVersion][file.ext].push(file);
             });
 
-            // 각 버전별로 빌드 시간 기준 내림차순 정렬
+            // 각 버전의 apk와 aab별로 빌드 시간 기준 내림차순 정렬
             Object.keys(groupedByVersion).forEach(version => {
-                groupedByVersion[version].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+                ['apk', 'aab'].forEach(ext => {
+                    groupedByVersion[version][ext].sort((a, b) => b.rawBuildTime.localeCompare(a.rawBuildTime));
+                });
             });
 
             // 버전 목록을 내림차순 정렬
@@ -225,17 +227,27 @@
             }
 
             fileList.innerHTML = sortedVersions.map(version => {
-                const builds = groupedByVersion[version];
-                const latestBuild = builds[0];
-                const olderBuilds = builds.slice(1);
+                const versionData = groupedByVersion[version];
+                const latestApk = versionData.apk[0];
+                const latestAab = versionData.aab[0];
+                const olderApkBuilds = versionData.apk.slice(1);
+                const olderAabBuilds = versionData.aab.slice(1);
+                const olderBuilds = [...olderApkBuilds, ...olderAabBuilds];
 
+                // 최신 빌드 버튼 생성 (apk와 aab 모두 표시)
                 let html = `
                     <div class="mt-4 p-4 bg-white rounded-lg shadow">
+                        <p class="file-version">버전: ${version}</p>
+                        <div class="ml-4">
+                `;
+
+                if (latestApk) {
+                    html += `
                         <div class="file-item">
-                            <p class="file-version">버전: ${version} (${latestBuild.versionCode}) <span class="file-type">(${latestBuild.ext})</span></p>
+                            <p class="file-version">${latestApk.versionCode} <span class="file-type">(apk)</span></p>
                             <button class="download-button bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" 
-                                    data-url="${latestBuild.downloadUrl}" 
-                                    data-filename="${latestBuild.name}">
+                                    data-url="${latestApk.downloadUrl}" 
+                                    data-filename="${latestApk.name}">
                                 <span class="text">다운로드</span>
                                 <svg class="progress-circle" viewBox="0 0 24 24">
                                     <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
@@ -243,7 +255,27 @@
                                 </svg>
                             </button>
                         </div>
-                `;
+                    `;
+                }
+
+                if (latestAab) {
+                    html += `
+                        <div class="file-item">
+                            <p class="file-version">${latestAab.versionCode} <span class="file-type">(aab)</span></p>
+                            <button class="download-button bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" 
+                                    data-url="${latestAab.downloadUrl}" 
+                                    data-filename="${latestAab.name}">
+                                <span class="text">다운로드</span>
+                                <svg class="progress-circle" viewBox="0 0 24 24">
+                                    <circle class="progress-circle-bg" cx="12" cy="12" r="10"></circle>
+                                    <circle class="progress-circle-fg" cx="12" cy="12" r="10" stroke-dasharray="0 62.83"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
 
                 if (olderBuilds.length > 0) {
                     html += `
@@ -253,7 +285,7 @@
                                 ${olderBuilds.map(build => `
                                     <div class="mt-2 p-2 bg-gray-50 rounded-lg">
                                         <div class="file-item">
-                                            <p class="file-version">버전: ${build.displayVersion} (${build.versionCode}) <span class="file-type">(${build.ext})</span></p>
+                                            <p class="file-version">${build.versionCode} <span class="file-type">(${build.ext})</span></p>
                                             <button class="download-button bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition" 
                                                     data-url="${build.downloadUrl}" 
                                                     data-filename="${build.name}">
@@ -355,5 +387,6 @@
         }
     }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'95387309c9e7ea2d',t:'MTc1MDU2MDc0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'95387309c9e7ea2d',t:'MTc1MDU2MDc0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
 </html>
